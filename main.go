@@ -71,11 +71,30 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateProduct(w http.ResponseWriter, r *http.Request) {
+	docID := mux.Vars(r)["id"]
+	var updatedDoc product
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(w, "Kindly enter data with the event title and description only in order to update")
+	}
 
+	json.Unmarshal(reqBody, &updatedDoc)
+	w.Header().Set("Content-Type", "application/json")
+	for i, singleDoc := range products {
+		if singleDoc.ID == docID {
+			singleDoc.ID = docID
+			singleDoc.Title = updatedDoc.Title
+			singleDoc.Category = updatedDoc.Category
+			singleDoc.Price = updatedDoc.Price
+			singleDoc.Pic_url = updatedDoc.Pic_url
+			products = append(products[:i], updatedDoc)
+			json.NewEncoder(w).Encode(singleDoc)
+		}
+	}
 }
 
 func deleteProduct(w http.ResponseWriter, r *http.Request) {
-
+	// docID := mux.Vars(r)["id"]
 }
 
 func main() {
