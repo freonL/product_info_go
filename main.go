@@ -2,20 +2,21 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+
 	"github.com/gorilla/mux"
 )
 
 // Model (field name start with capital)
 type product struct {
-	ID 				string `json:"_id"`
-	Title 		string `json:"title"`
-	Category 	string  `json:"category"`
-	Price 		float32  `json:"price"`
-	Pic_url 	string  `json:"pic_url"`
+	ID       string  `json:"_id"`
+	Title    string  `json:"title"`
+	Category string  `json:"category"`
+	Price    float32 `json:"price"`
+	Pic_url  string  `json:"pic_url"`
 }
 
 type allProducts []product
@@ -24,14 +25,15 @@ type allProducts []product
 var products = allProducts{
 	{
 
-		Title : "Tomato",
-		Category : "Fruit",
-		Price : 3.5,
-		Pic_url : "",
+		Title:    "Tomato",
+		Category: "Fruit",
+		Price:    3.5,
+		Pic_url:  "",
+		ID:       "1",
 	},
 }
 
-func homeLink( w http.ResponseWriter, r *http.Request) {
+func homeLink(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Welcome home!")
 }
 
@@ -58,21 +60,26 @@ func createProduct(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(newProduct)
 }
 
+func getProduct(w http.ResponseWriter, r *http.Request) {
+	docID := mux.Vars(r)["id"]
+	w.Header().Set("Content-Type", "application/json")
+	for _, doc := range products {
+		if doc.ID == docID {
+			json.NewEncoder(w).Encode(doc)
+		}
+	}
+}
 
-func getProduct (w http.ResponseWriter, r *http.Request) {
+func updateProduct(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func updateProduct (w http.ResponseWriter, r *http.Request) {
-
-}
-
-func deleteProduct (w http.ResponseWriter, r *http.Request) {
+func deleteProduct(w http.ResponseWriter, r *http.Request) {
 
 }
 
 func main() {
-	
+
 	router := mux.NewRouter().StrictSlash(true)
 
 	router.HandleFunc("/", homeLink)
@@ -81,6 +88,6 @@ func main() {
 	router.HandleFunc("/products/{id}", getProduct).Methods("GET")
 	router.HandleFunc("/products/{id}", updateProduct).Methods("PATCH")
 	router.HandleFunc("/products/{id}", deleteProduct).Methods("DELETE")
-	
+
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
