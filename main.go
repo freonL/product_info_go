@@ -82,19 +82,26 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	for i, singleDoc := range products {
 		if singleDoc.ID == docID {
-			singleDoc.ID = docID
+
 			singleDoc.Title = updatedDoc.Title
 			singleDoc.Category = updatedDoc.Category
 			singleDoc.Price = updatedDoc.Price
 			singleDoc.Pic_url = updatedDoc.Pic_url
-			products = append(products[:i], updatedDoc)
+			products = append(products[:i], singleDoc)
 			json.NewEncoder(w).Encode(singleDoc)
 		}
 	}
 }
 
 func deleteProduct(w http.ResponseWriter, r *http.Request) {
-	// docID := mux.Vars(r)["id"]
+	docID := mux.Vars(r)["id"]
+
+	for i, singleDoc := range products {
+		if singleDoc.ID == docID {
+			products = append(products[:i], products[i+1:]...)
+			fmt.Fprintf(w, "The event with ID %v has been deleted successfully", docID)
+		}
+	}
 }
 
 func main() {
