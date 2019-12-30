@@ -1,36 +1,30 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+var client *mongo.Client
+
 // Model (field name start with capital)
-type product struct {
-	ID       string  `json:"_id"`
-	Title    string  `json:"title"`
-	Category string  `json:"category"`
-	Price    float32 `json:"price"`
-	Pic_url  string  `json:"pic_url"`
-}
-
-type allProducts []product
-
-// dummy data
-var products = allProducts{
-	{
-
-		Title:    "Tomato",
-		Category: "Fruit",
-		Price:    3.5,
-		Pic_url:  "",
-		ID:       "1",
-	},
+type Product struct {
+	ID       primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	Title    *string            `json:"title,omitempty" bson:"title,omitempty"`
+	Category *string            `json:"category,omitempty" bson:"category,omitempty"`
+	Price    *float64           `json:"price,omitempty" bson:"price,omitempty"`
+	PicURL   *string            `json:"pic_url,omitempty" bson:"pic_url,omitempty"`
 }
 
 func homeLink(w http.ResponseWriter, r *http.Request) {
@@ -38,74 +32,130 @@ func homeLink(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAllProducts(w http.ResponseWriter, r *http.Request) {
-	// fmt.Println( len( products) )
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(products)
+	collection := client.Database("product_info").Collection("products")
+
+	// Find Multiple Documents
+	findOptions := options.Find()
+	// findOptions.SetLimit(10)
+
+	// Here's an array in which you can store the decoded documents
+	var results []*Product
+
+	// Passing bson.D{{}} as the filter matches all documents in the collection
+	cur, err := collection.Find(context.TODO(), bson.D{{}}, findOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for cur.Next(context.TODO()) {
+
+		// create a value into which the single document can be decoded
+		var doc Product
+		err := cur.Decode(&doc)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		results = append(results, &doc)
+	}
+
+	if err := cur.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	// Close the cursor once finished
+	cur.Close(context.TODO())
+
+	json.NewEncoder(w).Encode(results)
 }
 
 func createProduct(w http.ResponseWriter, r *http.Request) {
-	var newProduct product
-	reqBody, err := ioutil.ReadAll(r.Body)
+	w.Header().Set("Content-Type", "application/json")
+	collection := client.Database("product_info").Collection("products")
+	var newDoc Product
+
+	_ = json.NewDecoder(r.Body).Decode(&newDoc)
+	result, err := collection.InsertOne(context.TODO(), newDoc)
 	if err != nil {
-		fmt.Fprintf(w, "Kindly enter data with the event title and description only in order to update")
+		log.Fatal(err)
 	}
 
-	json.Unmarshal(reqBody, &newProduct)
-	products = append(products, newProduct)
-	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 
-	w.WriteHeader(http.StatusCreated)
-
-	json.NewEncoder(w).Encode(newProduct)
 }
 
 func getProduct(w http.ResponseWriter, r *http.Request) {
-	docID := mux.Vars(r)["id"]
 	w.Header().Set("Content-Type", "application/json")
-	for _, doc := range products {
-		if doc.ID == docID {
-			json.NewEncoder(w).Encode(doc)
-		}
+	paramId := mux.Vars(r)["id"]
+	docID, _ := primitive.ObjectIDFromHex(paramId)
+
+	var doc Product
+	collection := client.Database("product_info").Collection("products")
+	ctx, _ := context.WithTimeout(context.TODO(), 30*time.Second)
+
+	filter := bson.D{{"_id", docID}}
+	err := collection.FindOne(ctx, filter).Decode(&doc)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		return
 	}
+	json.NewEncoder(w).Encode(doc)
+
 }
 
 func updateProduct(w http.ResponseWriter, r *http.Request) {
-	docID := mux.Vars(r)["id"]
-	var updatedDoc product
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		fmt.Fprintf(w, "Kindly enter data with the event title and description only in order to update")
-	}
-
-	json.Unmarshal(reqBody, &updatedDoc)
 	w.Header().Set("Content-Type", "application/json")
-	for i, singleDoc := range products {
-		if singleDoc.ID == docID {
 
-			singleDoc.Title = updatedDoc.Title
-			singleDoc.Category = updatedDoc.Category
-			singleDoc.Price = updatedDoc.Price
-			singleDoc.Pic_url = updatedDoc.Pic_url
-			products = append(products[:i], singleDoc)
-			json.NewEncoder(w).Encode(singleDoc)
-		}
+	paramId := mux.Vars(r)["id"]
+	docID, _ := primitive.ObjectIDFromHex(paramId)
+	fmt.Println(docID)
+	json.NewEncoder(w).Encode(json.NewDecoder(r.Body))
+	var newDoc Product
+	err := json.NewDecoder(r.Body).Decode(&newDoc)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	collection := client.Database("product_info").Collection("products")
+
+	filter := bson.D{{"_id", docID}}
+	update := bson.D{{"$set", newDoc}}
+
+	updateResult, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	json.NewEncoder(w).Encode(updateResult)
 }
 
 func deleteProduct(w http.ResponseWriter, r *http.Request) {
-	docID := mux.Vars(r)["id"]
+	paramId := mux.Vars(r)["id"]
+	docID, _ := primitive.ObjectIDFromHex(paramId)
 
-	for i, singleDoc := range products {
-		if singleDoc.ID == docID {
-			products = append(products[:i], products[i+1:]...)
-			fmt.Fprintf(w, "The event with ID %v has been deleted successfully", docID)
-		}
+	collection := client.Database("product_info").Collection("products")
+
+	filter := bson.D{{"_id", docID}}
+	deleteResult, err := collection.DeleteOne(context.TODO(), filter)
+	if err != nil {
+		log.Fatal(err)
 	}
+	json.NewEncoder(w).Encode(deleteResult)
+
 }
 
 func main() {
 
+	fmt.Println("Starting the application...")
+	// Setup Database connection
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	clientOptions := options.Client().ApplyURI("mongodb://user_01:abc123@ds060009.mlab.com:60009/product_info?retryWrites=false")
+	client, _ = mongo.Connect(ctx, clientOptions)
+
+	// Routing endpoints
 	router := mux.NewRouter().StrictSlash(true)
 
 	router.HandleFunc("/", homeLink)
