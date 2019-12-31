@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
-
+	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -147,12 +148,21 @@ func deleteProduct(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func init() {
+	// loads values from .env into the system
+	if err := godotenv.Load(); err != nil {
+		log.Print("No .env file found")
+	}
+}
+
 func main() {
+
+	mongoURI, _ := os.LookupEnv("MONGO_URI")
 
 	fmt.Println("Starting the application...")
 	// Setup Database connection
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	clientOptions := options.Client().ApplyURI("mongodb://user_01:abc123@ds060009.mlab.com:60009/product_info?retryWrites=false")
+	clientOptions := options.Client().ApplyURI(mongoURI)
 	client, _ = mongo.Connect(ctx, clientOptions)
 
 	// Routing endpoints
