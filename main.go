@@ -175,5 +175,6 @@ func main() {
 	router.HandleFunc("/products/{id}", updateProduct).Methods("PATCH")
 	router.HandleFunc("/products/{id}", deleteProduct).Methods("DELETE")
 
-	log.Fatal(http.ListenAndServe(":8080", router))
+	port, _ := os.LookupEnv("PORT")
+	log.Fatal(http.ListenAndServe(":"+port, router))
 }
