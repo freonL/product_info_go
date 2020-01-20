@@ -159,9 +159,9 @@ func deleteProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddRoutes(router *mux.Router) {
-	router.HandleFunc("/products", getAllProducts).Methods("GET")
-	router.HandleFunc("/products", createProduct).Methods("POST")
-	router.HandleFunc("/products/{id}", getProduct).Methods("GET")
-	router.HandleFunc("/products/{id}", updateProduct).Methods("PATCH")
-	router.HandleFunc("/products/{id}", deleteProduct).Methods("DELETE")
+	router.HandleFunc("/", getAllProducts).Methods("GET")
+	router.HandleFunc("/", createProduct).Methods("POST")
+	router.HandleFunc("/{id}", getProduct).Methods("GET")
+	router.HandleFunc("/{id}", updateProduct).Methods("PATCH")
+	router.HandleFunc("/{id}", deleteProduct).Methods("DELETE")
 }

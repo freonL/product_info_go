@@ -26,7 +26,7 @@ func main() {
 
 	router.HandleFunc("/", homeLink)
 
-	resources.AddRoutes(router)
+	resources.AddRoutes(router.PathPrefix("/products").Subrouter())
 
 	port, _ := os.LookupEnv("PORT")
 	log.Fatal(http.ListenAndServe(":"+port, router))
