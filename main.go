@@ -7,20 +7,21 @@ import (
 	"os"
 
 	"github.com/freonL/product_info_go/resources"
+	"github.com/joho/godotenv"
 
 	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/mongo"
 )
-
-var client *mongo.Client
 
 func homeLink(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Welcome home!")
 }
 
 func main() {
-
-	fmt.Println("Starting the application...")
+	if err := godotenv.Load(); err != nil {
+		log.Print("No .env file found")
+	}
+	port, _ := os.LookupEnv("PORT")
+	fmt.Println("Starting the application at port :" + port)
 
 	router := mux.NewRouter().StrictSlash(true)
 
@@ -28,6 +29,5 @@ func main() {
 
 	resources.AddRoutes(router.PathPrefix("/products").Subrouter())
 
-	port, _ := os.LookupEnv("PORT")
 	log.Fatal(http.ListenAndServe(":"+port, router))
 }
